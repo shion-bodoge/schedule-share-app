@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>スケジュール共有ボード</title>
+  <style>
+    :root {
+      --bg: #fff8f1;
+      --card: #ffffff;
+      --text: #3b3028;
+      --muted: #8d7b6d;
+      --line: #eadccc;
+      --accent: #f4a261;
+      --accent-weak: #fff0df;
+      --green: #4caf7a;
+      --yellow: #e5a936;
+      --red: #dc6b6b;
+      --gray: #aaa;
+      --shadow: 0 10px 24px rgba(102, 71, 42, 0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .app {
+      width: min(1180px, 100vw);
+      height: 100vh;
+      height: 100dvh;
+      max-height: 100vh;
+      max-height: 100dvh;
+      margin: 0 auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    h1 {
+      font-size: 19px;
+      margin: 0;
+      letter-spacing: .03em;
+    }
+
+    .today-date {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .sync-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f7eadc;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .sync-badge.online { background: #dcf5e8; color: #166b42; }
+    .sync-badge.offline { background: #ffe0e0; color: #8f2727; }
+
+    .share-config-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .share-config-grid textarea {
+      min-height: 150px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .settings-section {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+
+    .backup-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .current-panel {
+      background: linear-gradient(135deg, #ffffff, #fff2e2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      box-shadow: var(--shadow);
+      margin-bottom: 8px;
+      flex: 0 0 auto;
+    }
+
+    .current-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .current-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .person-current {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 9px;
+      min-height: 78px;
+    }
+
+    .person-name {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .current-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .current-event {
+      font-size: 14px;
+      font-weight: 700;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .current-time {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .next-call {
+      margin-top: 6px;
+      padding: 5px 8px;
+      border-radius: 12px;
+      background: #fff8ed;
+      border: 1px dashed var(--line);
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .next-call strong {
+      color: #166b42;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-ok { color: #166b42; background: #dcf5e8; }
+    .status-slow { color: #7a5200; background: #fff0c9; }
+    .status-ng { color: #8f2727; background: #ffe0e0; }
+    .status-unknown { color: #666; background: #eeeeee; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex: 0 0 auto;
+    }
+
+    main {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-btn, button {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: var(--accent-weak);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .tab-btn.active, button.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button.ghost { background: #f7eadc; color: var(--text); }
+    button.danger { background: #ffe0e0; color: #9a2828; }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      flex: 0 0 auto;
+    }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[type="date"] { width: auto; }
+
+    .tab-content { display: none; }
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .day-layout {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .schedule-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      min-height: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .schedule-head {
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf5;
+    }
+
+    .timeline {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      background: #fffdfb;
+    }
+
+    .timeline-stage {
+      position: relative;
+      height: 960px;
+      min-width: 0;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .timeline.dragging .timeline-stage {
+      cursor: grabbing;
+    }
+
+    .drag-preview {
+      position: absolute;
+      left: 76px;
+      right: 122px;
+      border: 2px dashed var(--accent);
+      background: rgba(244, 162, 97, .18);
+      border-radius: 12px;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9a5b22;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .timeline-stage::before {
+      content: "";
+      position: absolute;
+      left: 68px;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid #f3e7da;
+    }
+
+    .timeline-stage::after {
+      content: "";
+      position: absolute;
+      right: 112px;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid #f3e7da;
+    }
+
+    .time-label {
+      position: absolute;
+      left: 0;
+      width: 68px;
+      padding-right: 8px;
+      transform: translateY(-50%);
+      text-align: right;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .time-label.start { transform: none; top: 4px !important; }
+    .time-label.end { transform: translateY(-100%); }
+
+    .slot-line {
+      position: absolute;
+      left: 68px;
+      right: 0;
+      border-top: 1px solid rgba(243, 231, 218, .65);
+      pointer-events: none;
+    }
+
+    .slot-line.hour {
+      border-top-color: #eadccc;
+    }
+
+    .event-block, .status-block {
+      position: absolute;
+      cursor: pointer;
+      overflow: hidden;
+      min-height: 24px;
+    }
+
+    .event-block {
+      left: 76px;
+      right: 122px;
+      border-left: 5px solid var(--accent);
+      background: #fff6ec;
+      border-radius: 12px;
+      padding: 8px 10px;
+      box-shadow: 0 3px 10px rgba(102, 71, 42, .08);
+      z-index: 3;
+    }
+
+    .event-ok {
+      background: #e8f8ee;
+      border-left-color: var(--green);
+    }
+
+    .event-slow {
+      background: #fff7d6;
+      border-left-color: var(--yellow);
+    }
+
+    .event-ng {
+      background: #fdecec;
+      border-left-color: var(--red);
+    }
+
+    .event-unknown {
+      background: #f3f3f3;
+      border-left-color: var(--gray);
+    }
+
+    .event-block.overlap {
+      right: auto;
+      min-width: 0;
+    }
+
+    .status-block {
+      right: 8px;
+      width: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      z-index: 3;
+    }
+
+    .event-title {
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .event-block.compact {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+
+    .event-block.compact .event-time {
+      display: none;
+    }
+
+    .now-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #e76f51;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .now-label {
+      position: absolute;
+      left: 4px;
+      transform: translateY(-50%);
+      background: #e76f51;
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      z-index: 11;
+      pointer-events: none;
+    }
+
+    .month-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+    }
+
+    .month-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-rows: 30px repeat(6, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      height: 100%;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .weekday, .day-cell {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .weekday {
+      padding: 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      background: #fff6ec;
+      color: var(--muted);
+    }
+
+    .day-cell {
+      min-height: 0;
+      padding: 5px;
+      background: #fff;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .day-cell.other { opacity: .35; background: #fffdfb; }
+    .day-cell.today { outline: 3px solid rgba(244, 162, 97, .35); outline-offset: -3px; }
+
+    .day-num {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .mini-event {
+      font-size: 11px;
+      background: #fff0df;
+      border-radius: 8px;
+      padding: 3px 5px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .mini-event:hover {
+      filter: brightness(.98);
+    }
+
+    dialog {
+      border: 0;
+      border-radius: 22px;
+      padding: 0;
+      box-shadow: 0 24px 70px rgba(0,0,0,.25);
+      max-width: 480px;
+      width: calc(100% - 28px);
+    }
+
+    dialog::backdrop { background: rgba(59, 48, 40, .35); }
+
+    .modal {
+      padding: 14px;
+      background: #fffdf9;
+    }
+
+    .modal h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .form-row { margin-bottom: 8px; }
+    .form-row label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .checkbox-row label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      width: auto;
+    }
+
+    .repeat-options {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .repeat-day {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 4px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .repeat-day input { width: auto; }
+
+    .repeat-help {
+      margin-top: 5px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .right-actions { display: flex; gap: 8px; }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 760px) {
+      .app { padding: 8px; }
+      header { align-items: flex-start; flex-direction: column; gap: 6px; }
+      h1 { font-size: 17px; }
+      .current-grid, .day-layout { grid-template-columns: 1fr; }
+  
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .sync-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f7eadc;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .sync-badge.online { background: #dcf5e8; color: #166b42; }
+    .sync-badge.offline { background: #ffe0e0; color: #8f2727; }
+
+    .share-config-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .share-config-grid textarea {
+      min-height: 150px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .current-panel { position: static; padding: 8px; }
+      .person-current { min-height: auto; padding: 8px; }
+      .timeline-stage::before { left: 58px; }
+      .timeline-stage::after { right: 98px; }
+      .time-label { width: 58px; font-size: 11px; }
+      .slot-line { left: 58px; }
+      .event-block { left: 66px; right: 106px; padding: 7px 8px; }
+      .drag-preview { left: 66px; right: 106px; }
+      .status-block { right: 6px; width: 88px; }
+      .status-pill { padding: 4px 7px; font-size: 11px; }
+      .timeline { min-height: 0; }
+      .day-cell { min-height: 0; padding: 6px; }
+      .mini-event { display: none; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>スケジュール共有ボード</h1>
+        <div class="today-date" id="todayText"></div>
+      </div>
+      <div class="header-actions">
+        <button class="ghost" id="helpBtn">ヘルプ</button>
+        <button class="ghost" id="shareSettingsBtn">共有設定</button>
+        <button class="primary" id="addEventBtn">＋予定を追加</button>
+      </div>
+    </header>
+
+    <section class="current-panel">
+      <div class="current-title">
+        <span>現在の予定とステータス</span>
+        <span class="today-date" id="nowText"></span>
+      </div>
+      <div class="current-grid">
+        <div class="person-current" id="currentShion"></div>
+        <div class="person-current" id="currentPartner"></div>
+      </div>
+    </section>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="day">1日</button>
+      <button class="tab-btn" data-tab="month">月間</button>
+    </nav>
+
+    <main>
+      <section class="tab-content active" id="tab-day">
+        <div class="toolbar">
+          <div class="date-nav">
+            <button class="ghost" id="prevDay">＜</button>
+            <input type="date" id="selectedDate" />
+            <button class="ghost" id="nextDay">＞</button>
+            <button class="ghost" id="todayBtn">今日</button>
+          </div>
+          <div class="hint">0:00〜24:00を表示します（30分ごとに補助線）</div>
+        </div>
+        <div class="day-layout">
+          <div class="schedule-card">
+            <div class="schedule-head"><strong id="labelShion">ユーザー1</strong><button class="ghost add-person" data-person="shion">＋追加</button></div>
+            <div class="timeline" id="timelineShion"></div>
+          </div>
+          <div class="schedule-card">
+            <div class="schedule-head"><strong id="labelPartner">ユーザー2</strong><button class="ghost add-person" data-person="partner">＋追加</button></div>
+            <div class="timeline" id="timelinePartner"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-month">
+        <div class="toolbar">
+          <div class="date-nav">
+            <button class="ghost" id="prevMonth">＜</button>
+            <strong id="monthTitle"></strong>
+            <button class="ghost" id="nextMonth">＞</button>
+            <button class="ghost" id="thisMonthBtn">今月</button>
+          </div>
+          <div class="hint">月間タブには、予定追加時に「月間にも表示」にチェックした予定だけ表示します</div>
+        </div>
+        <div class="month-card">
+          <div class="month-grid" id="monthGrid"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <dialog id="shareDialog">
+    <form method="dialog" class="modal" id="shareForm">
+      <h2>共有設定</h2>
+      <div class="form-row">
+        <label>同期状態</label>
+        <div id="syncStatusText" class="hint">未設定の場合は、この端末だけに保存されます。</div>
+      </div>
+      <div class="settings-section">
+        <h3 style="font-size:14px;margin:0 0 8px;">表示名</h3>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>ユーザー1</label>
+            <input type="text" id="user1NameInput" placeholder="ユーザー1" />
+          </div>
+          <div class="form-row">
+            <label>ユーザー2</label>
+            <input type="text" id="user2NameInput" placeholder="ユーザー2" />
+          </div>
+        </div>
+        <div class="hint">名前は共有データとして保存されるため、2人とも同じ表示になります。</div>
+      </div>
+      <div class="settings-section">
+        <h3 style="font-size:14px;margin:0 0 8px;">共有</h3>
+        <div class="form-row">
+          <label>ルームID</label>
+          <input type="text" id="roomIdInput" placeholder="例：shion-room-2026" />
+        </div>
+        <div class="form-row">
+          <label>Firebase設定JSON</label>
+          <textarea id="firebaseConfigInput" placeholder='FirebaseのWebアプリ設定をJSONで貼り付けます。例：&#10;{&#10;  "apiKey": "...",&#10;  "authDomain": "...",&#10;  "projectId": "...",&#10;  "appId": "..."&#10;}'></textarea>
+        </div>
+        <div class="hint">同じFirebase設定とルームIDを2人で使うと、予定が共有されます。未設定ならlocalStorage保存のままです。</div>
+      </div>
+      <div class="settings-section">
+        <h3 style="font-size:14px;margin:0 0 8px;">バックアップ</h3>
+        <div class="backup-actions">
+          <button type="button" class="ghost" id="exportBackupBtn">エクスポート</button>
+          <button type="button" class="ghost" id="importBackupBtn">インポート</button>
+          <input type="file" id="backupFileInput" accept="application/json,.json" style="display:none;" />
+        </div>
+        <div class="hint">予定・繰り返し設定・表示名をJSONで保存/復元できます。Firebase設定JSONはバックアップに含めません。</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="danger" id="disableShareBtn">共有をオフ</button>
+        <div class="right-actions">
+          <button type="button" class="ghost" id="cancelShareBtn">キャンセル</button>
+          <button type="submit" class="primary">保存して接続</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog">
+    <div class="modal">
+      <h2>使い方ヘルプ</h2>
+      <div class="hint">
+        <p><strong>予定を追加</strong><br>上の「＋予定を追加」または各人の「＋追加」から登録できます。1日タブの空白をクリックすると、その時間から1時間の予定を追加できます。空白をドラッグすると、ドラッグした範囲で予定を追加できます。</p>
+        <p><strong>予定を編集・削除</strong><br>予定ボックスまたは右側の通話ステータスをクリックすると編集できます。繰り返し予定は「この日だけ」「この日以降」「全体」を選べます。</p>
+        <p><strong>通話ステータス</strong><br>🟢話せる、🟡返事遅め、🔴むずかしい、⚪未定から選べます。予定が重なった場合は短い予定を優先し、同じ長さなら後から更新した予定を優先します。</p>
+        <p><strong>月間タブ</strong><br>予定登録時に「月間にも表示する」にチェックした予定だけ表示されます。</p>
+        <p><strong>共有設定</strong><br>Firebase設定JSONとルームIDを入れると、同じルームIDの人と予定を共有できます。未設定ならこの端末だけに保存されます。</p>
+      </div>
+      <div class="modal-actions">
+        <span></span>
+        <button type="button" class="primary" id="closeHelpBtn">閉じる</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="eventDialog">
+    <form method="dialog" class="modal" id="eventForm">
+      <h2 id="modalTitle">予定を追加</h2>
+      <input type="hidden" id="eventId" />
+      <input type="hidden" id="occurrenceDate" />
+      <div class="form-grid">
+        <div class="form-row">
+          <label>対象</label>
+          <select id="person">
+            <option value="shion">ユーザー1</option>
+            <option value="partner">ユーザー2</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>日付</label>
+          <input type="date" id="eventDate" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>予定</label>
+        <input type="text" id="title" placeholder="例：仕事、ゲーム、配信、自由時間" required />
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>開始</label>
+          <input type="time" id="startTime" required />
+        </div>
+        <div class="form-row">
+          <label>終了</label>
+          <input type="time" id="endTime" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>通話ステータス</label>
+        <select id="status">
+          <option value="ok">🟢 話せる</option>
+          <option value="slow">🟡 返事遅め・少しならOK</option>
+          <option value="ng">🔴 通話はむずかしい</option>
+          <option value="unknown">⚪ 未定</option>
+        </select>
+      </div>
+      <div class="form-row checkbox-row">
+        <label><input type="checkbox" id="showInMonth" /> 月間にも表示する</label>
+      </div>
+      <div class="form-row">
+        <label>繰り返し</label>
+        <select id="repeatType">
+          <option value="none">なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+        <div id="weeklyOptions" style="display:none;">
+          <div class="repeat-options">
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="0" />日</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="1" />月</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="2" />火</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="3" />水</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="4" />木</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="5" />金</label>
+            <label class="repeat-day"><input type="checkbox" name="repeatDay" value="6" />土</label>
+          </div>
+          <div class="repeat-help">毎週を選んだ場合、チェックした曜日に表示されます。</div>
+        </div>
+        <div class="repeat-help">繰り返し予定は、登録した日付以降に表示されます。</div>
+      </div>
+      <div class="form-row" id="editScopeRow" style="display:none;">
+        <label>繰り返し予定の変更範囲</label>
+        <select id="editScope">
+          <option value="only">この日だけ変更</option>
+          <option value="future">この日以降を変更</option>
+          <option value="series">繰り返し全体を変更</option>
+        </select>
+        <div class="repeat-help">「この日だけ変更」はその日だけ上書きします。「この日以降を変更」は元の予定を前日までで終了し、この日から新しい繰り返し予定を作ります。</div>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="memo" rows="3" placeholder="必要なら補足"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="danger" id="deleteBtn">削除</button>
+        <div class="right-actions">
+          <button type="button" class="ghost" id="cancelBtn">キャンセル</button>
+          <button type="submit" class="primary">保存</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+
+
+  <script>
+    const STORAGE_KEY = 'coupleScheduleEvents.v2';
+    const SHARE_SETTINGS_KEY = 'coupleScheduleShareSettings.v1';
+    const PEOPLE_STORAGE_KEY = 'coupleSchedulePeople.v1';
+    const DEFAULT_PEOPLE = {
+      shion: 'ユーザー1',
+      partner: 'ユーザー2'
+    };
+    let people = loadPeople();
+    const statusMap = {
+      ok: { label: '話せる', icon: '🟢', className: 'status-ok' },
+      slow: { label: '返事遅め', icon: '🟡', className: 'status-slow' },
+      ng: { label: 'むずかしい', icon: '🔴', className: 'status-ng' },
+      unknown: { label: '未定', icon: '⚪', className: 'status-unknown' }
+    };
+
+    let events = loadEvents();
+    let currentDate = toDateString(new Date());
+    let monthCursor = new Date();
+    let shareSettings = loadShareSettings();
+    let firebaseReady = false;
+    let firebaseDocRef = null;
+    let firebaseUnsubscribe = null;
+    let firebaseModules = null;
+    let syncingFromRemote = false;
+
+    const selectedDate = document.getElementById('selectedDate');
+    const eventDialog = document.getElementById('eventDialog');
+    const eventForm = document.getElementById('eventForm');
+    const shareDialog = document.getElementById('shareDialog');
+    const shareForm = document.getElementById('shareForm');
+    const helpDialog = document.getElementById('helpDialog');
+
+    selectedDate.value = currentDate;
+
+    function loadEvents() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : sampleEvents();
+      } catch {
+        return sampleEvents();
+      }
+    }
+
+    function saveEvents() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      if (firebaseReady && firebaseDocRef && !syncingFromRemote) {
+        firebaseModules.setDoc(firebaseDocRef, {
+          events,
+          people,
+          updatedAt: firebaseModules.serverTimestamp()
+        }, { merge: true }).catch(err => {
+          console.error(err);
+          setSyncBadge('offline', '同期エラー');
+          alert('Firebaseへの保存に失敗しました。設定やFirestoreルールを確認してください。');
+        });
+      }
+    }
+
+    function loadShareSettings() {
+      try {
+        const raw = localStorage.getItem(SHARE_SETTINGS_KEY);
+        return raw ? JSON.parse(raw) : { roomId: '', firebaseConfigText: '' };
+      } catch {
+        return { roomId: '', firebaseConfigText: '' };
+      }
+    }
+
+    function saveShareSettings(settings) {
+      shareSettings = settings;
+      localStorage.setItem(SHARE_SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    function loadPeople() {
+      try {
+        const raw = localStorage.getItem(PEOPLE_STORAGE_KEY);
+        const saved = raw ? JSON.parse(raw) : {};
+        return { ...DEFAULT_PEOPLE, ...saved };
+      } catch {
+        return { ...DEFAULT_PEOPLE };
+      }
+    }
+
+    function savePeople(nextPeople = people, syncRemote = true) {
+      people = {
+        shion: (nextPeople.shion || DEFAULT_PEOPLE.shion).trim() || DEFAULT_PEOPLE.shion,
+        partner: (nextPeople.partner || DEFAULT_PEOPLE.partner).trim() || DEFAULT_PEOPLE.partner
+      };
+      localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people));
+      updatePeopleLabels();
+      if (syncRemote && firebaseReady && firebaseDocRef && !syncingFromRemote) {
+        firebaseModules.setDoc(firebaseDocRef, {
+          people,
+          updatedAt: firebaseModules.serverTimestamp()
+        }, { merge: true }).catch(err => {
+          console.error(err);
+          setSyncBadge('offline', '名前の同期エラー');
+        });
+      }
+    }
+
+    function sampleEvents() {
+      return [];
+    }
+
+    function toDateString(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateJa(dateString) {
+      const d = new Date(dateString + 'T00:00:00');
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    function timeToMinutes(t) {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function minutesToTime(minutes) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function getDateObj(dateString) {
+      return new Date(dateString + 'T00:00:00');
+    }
+
+    function addDaysString(dateString, diff) {
+      const d = getDateObj(dateString);
+      d.setDate(d.getDate() + diff);
+      return toDateString(d);
+    }
+
+    function previousDateString(dateString) {
+      return addDaysString(dateString, -1);
+    }
+
+    function normalizeRepeatType(ev) {
+      return ev.repeatType || 'none';
+    }
+
+    function eventOccursOn(ev, date) {
+      const repeatType = normalizeRepeatType(ev);
+      if (repeatType === 'none') return ev.date === date;
+      if (date < ev.date) return false;
+      if (ev.repeatUntil && date > ev.repeatUntil) return false;
+      if (Array.isArray(ev.exceptionDates) && ev.exceptionDates.includes(date)) return false;
+
+      const target = getDateObj(date);
+      const base = getDateObj(ev.date);
+
+      if (repeatType === 'daily') return true;
+      if (repeatType === 'weekly') {
+        const days = Array.isArray(ev.repeatDays) && ev.repeatDays.length
+          ? ev.repeatDays.map(Number)
+          : [base.getDay()];
+        return days.includes(target.getDay());
+      }
+      if (repeatType === 'monthly') {
+        return target.getDate() === base.getDate();
+      }
+      return ev.date === date;
+    }
+
+    function getEventsFor(date, person = null) {
+      return events
+        .map((e, index) => ({
+          ...e,
+          date: eventOccursOn(e, date) && normalizeRepeatType(e) !== 'none' ? date : e.date,
+          originalDate: e.date,
+          occurrenceDate: date,
+          _order: index,
+          isRecurring: normalizeRepeatType(e) !== 'none'
+        }))
+        .filter(e => eventOccursOn(events[e._order], date) && (!person || e.person === person))
+        .sort((a, b) => {
+          const startDiff = timeToMinutes(a.start) - timeToMinutes(b.start);
+          if (startDiff) return startDiff;
+          const endDiff = timeToMinutes(a.end) - timeToMinutes(b.end);
+          if (endDiff) return endDiff;
+          return (a._order || 0) - (b._order || 0);
+        });
+    }
+
+    function getMergedEventsFor(date, person = null) {
+      const list = getEventsFor(date, person);
+      const merged = [];
+
+      list.forEach(ev => {
+        const last = merged[merged.length - 1];
+        const canMerge = last
+          && last.person === ev.person
+          && last.date === ev.date
+          && last.title === ev.title
+          && last.status === ev.status
+          && (last.memo || '') === (ev.memo || '')
+          && normalizeRepeatType(last) === normalizeRepeatType(ev)
+          && (last.originalDate || last.date) === (ev.originalDate || ev.date)
+          && last.end === ev.start;
+
+        if (canMerge) {
+          last.end = ev.end;
+          last.ids.push(ev.id);
+        } else {
+          merged.push({ ...ev, ids: [ev.id] });
+        }
+      });
+
+      return merged;
+    }
+
+    function eventPriorityScore(ev) {
+      return {
+        duration: timeToMinutes(ev.end) - timeToMinutes(ev.start),
+        updated: Number(ev.updatedAt || ev.createdAt || ev._order || 0),
+        order: Number(ev._order || 0)
+      };
+    }
+
+    function choosePriorityEvent(list) {
+      if (!list.length) return null;
+      return list.slice().sort((a, b) => {
+        const pa = eventPriorityScore(a);
+        const pb = eventPriorityScore(b);
+        if (pa.duration !== pb.duration) return pa.duration - pb.duration;
+        if (pa.updated !== pb.updated) return pb.updated - pa.updated;
+        return pb.order - pa.order;
+      })[0];
+    }
+
+    function getCurrentEvent(person) {
+      const now = new Date();
+      const today = toDateString(now);
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      const list = getMergedEventsFor(today, person)
+        .filter(e => timeToMinutes(e.start) <= minutes && minutes < timeToMinutes(e.end));
+      return choosePriorityEvent(list);
+    }
+
+    function getNextCallableEvent(person) {
+      const now = new Date();
+      const today = toDateString(now);
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      const list = getMergedEventsFor(today, person).filter(e => e.status === 'ok' && timeToMinutes(e.end) > minutes);
+      const currentCallable = list.find(e => timeToMinutes(e.start) <= minutes && minutes < timeToMinutes(e.end));
+      if (currentCallable) return { ...currentCallable, isNow: true };
+      return list.find(e => timeToMinutes(e.start) >= minutes) || null;
+    }
+
+    function nextCallableHtml(person) {
+      const ev = getNextCallableEvent(person);
+      if (!ev) {
+        return '<div class="next-call">📞 次に通話できる時間：今日の予定内では見つかりません</div>';
+      }
+      if (ev.isNow) {
+        return `<div class="next-call">📞 次に通話できる時間：<strong>今</strong>（${ev.end}まで）</div>`;
+      }
+      return `<div class="next-call">📞 次に通話できる時間：<strong>${ev.start}</strong>〜${ev.end}（${escapeHtml(ev.title)}）</div>`;
+    }
+
+    function renderCurrentPanel() {
+      const now = new Date();
+      document.getElementById('todayText').textContent = `今日は ${formatDateJa(toDateString(now))}`;
+      document.getElementById('nowText').textContent = `${minutesToTime(now.getHours() * 60 + now.getMinutes())} 時点`;
+      renderCurrentPerson('shion', document.getElementById('currentShion'));
+      renderCurrentPerson('partner', document.getElementById('currentPartner'));
+    }
+
+    function renderCurrentPerson(person, el) {
+      const ev = getCurrentEvent(person);
+      if (!ev) {
+        el.innerHTML = `
+          <div class="person-name">${people[person]}</div>
+          <div class="current-main">
+            <div class="current-event">現在の予定なし</div>
+            ${statusPill('unknown')}
+          </div>
+          <div class="current-time">登録された予定の時間外です</div>
+          ${nextCallableHtml(person)}
+        `;
+        return;
+      }
+      el.innerHTML = `
+        <div class="person-name">${people[person]}</div>
+        <div class="current-main">
+          <div class="current-event">${escapeHtml(ev.title)}</div>
+          ${statusPill(ev.status)}
+        </div>
+        <div class="current-time">${ev.start}〜${ev.end}${ev.memo ? ' / ' + escapeHtml(ev.memo) : ''}</div>
+        ${nextCallableHtml(person)}
+      `;
+    }
+
+    function statusPill(status) {
+      const s = statusMap[status] || statusMap.unknown;
+      return `<span class="status-pill ${s.className}">${s.icon} ${s.label}</span>`;
+    }
+
+    function renderDay() {
+      selectedDate.value = currentDate;
+      renderTimeline('shion', document.getElementById('timelineShion'));
+      renderTimeline('partner', document.getElementById('timelinePartner'));
+      renderCurrentPanel();
+      scrollTimelinesToNow();
+    }
+
+    function scrollTimelinesToNow() {
+      if (currentDate !== toDateString(new Date())) return;
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const pxPerMinute = 2 / 3;
+      const timelines = [document.getElementById('timelineShion'), document.getElementById('timelinePartner')];
+      requestAnimationFrame(() => {
+        timelines.forEach(timeline => {
+          if (!timeline) return;
+          const target = Math.max(nowMinutes * pxPerMinute - timeline.clientHeight * 0.38, 0);
+          timeline.scrollTop = target;
+        });
+      });
+    }
+
+    function renderTimeline(person, container) {
+      const dayEvents = getMergedEventsFor(currentDate, person);
+      const isToday = currentDate === toDateString(new Date());
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const pxPerMinute = 2 / 3;
+      let html = '<div class="timeline-stage">';
+
+      for (let m = 0; m <= 1440; m += 30) {
+        const isHour = m % 60 === 0;
+        html += `<div class="slot-line ${isHour ? 'hour' : ''}" style="top:${m * pxPerMinute}px"></div>`;
+        if (isHour) {
+          const labelClass = m === 0 ? 'start' : (m === 1440 ? 'end' : '');
+          html += `<div class="time-label ${labelClass}" style="top:${m * pxPerMinute}px">${minutesToTime(m)}</div>`;
+        }
+      }
+
+      const laidOutEvents = layoutOverlappingEvents(dayEvents);
+      const timelineWidth = container.clientWidth || 520;
+      const layoutMetrics = {
+        left: 76,
+        right: 122,
+        width: Math.max(timelineWidth - 76 - 122, 120),
+        gap: 8
+      };
+      laidOutEvents.forEach(ev => {
+        const start = timeToMinutes(ev.start);
+        const end = timeToMinutes(ev.end);
+        const top = start * pxPerMinute;
+        const height = Math.max((end - start) * pxPerMinute - 4, 24);
+        html += eventBlock(ev, top, height, layoutMetrics);
+      });
+
+      getEffectiveStatusSegments(dayEvents).forEach(seg => {
+        const top = seg.start * pxPerMinute;
+        const height = Math.max((seg.end - seg.start) * pxPerMinute - 4, 24);
+        html += statusBlock(seg.event, top, height);
+      });
+
+      if (isToday) {
+        const top = nowMinutes * pxPerMinute;
+        html += `<div class="now-line" style="top:${top}px"></div><div class="now-label" style="top:${top}px">今</div>`;
+      }
+
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('[data-event-id]').forEach(el => {
+        el.addEventListener('click', (event) => {
+          event.stopPropagation();
+          openEditDialog(el.dataset.eventId, el.dataset.occurrenceDate || currentDate);
+        });
+      });
+      container._suppressBlankClick = false;
+      container.onclick = (event) => handleTimelineBlankClick(event, person, container);
+      setupTimelineDrag(container, person);
+    }
+
+    function getTimelineMinuteFromClientY(stage, clientY) {
+      const pxPerMinute = 2 / 3;
+      const rect = stage.getBoundingClientRect();
+      const y = Math.min(Math.max(clientY - rect.top, 0), 1440 * pxPerMinute - 1);
+      return Math.floor(y / pxPerMinute);
+    }
+
+    function snapFloor30(minutes) {
+      return Math.max(0, Math.min(Math.floor(minutes / 30) * 30, 1410));
+    }
+
+    function snapCeil30(minutes) {
+      return Math.max(30, Math.min(Math.ceil(minutes / 30) * 30, 1440));
+    }
+
+    function makeSelectionRange(anchorStart, currentMinute) {
+      if (currentMinute >= anchorStart) {
+        const end = Math.max(snapCeil30(currentMinute), anchorStart + 30);
+        return { start: anchorStart, end: Math.min(end, 1440) };
+      }
+      return {
+        start: snapFloor30(currentMinute),
+        end: Math.min(anchorStart + 30, 1440)
+      };
+    }
+
+    function previewLabel(start, end) {
+      return `${minutesToTime(start)}〜${minutesToInputTime(end)}`;
+    }
+
+    function setupTimelineDrag(container, person) {
+      const stage = container.querySelector('.timeline-stage');
+      if (!stage) return;
+      let drag = null;
+      const pxPerMinute = 2 / 3;
+
+      container.onpointerdown = (event) => {
+        if (event.button !== undefined && event.button !== 0) return;
+        if (event.target.closest('[data-event-id]')) return;
+        const anchorMinute = snapFloor30(getTimelineMinuteFromClientY(stage, event.clientY));
+        drag = {
+          pointerId: event.pointerId,
+          anchorMinute,
+          startClientY: event.clientY,
+          dragging: false,
+          preview: null,
+          range: { start: anchorMinute, end: Math.min(anchorMinute + 30, 1440) }
+        };
+        stage.setPointerCapture?.(event.pointerId);
+      };
+
+      container.onpointermove = (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const moved = Math.abs(event.clientY - drag.startClientY);
+        if (moved < 8 && !drag.dragging) return;
+        event.preventDefault();
+        drag.dragging = true;
+        container.classList.add('dragging');
+        if (!drag.preview) {
+          drag.preview = document.createElement('div');
+          drag.preview.className = 'drag-preview';
+          stage.appendChild(drag.preview);
+        }
+        const currentMinute = getTimelineMinuteFromClientY(stage, event.clientY);
+        const range = makeSelectionRange(drag.anchorMinute, currentMinute);
+        drag.range = range;
+        drag.preview.style.top = `${range.start * pxPerMinute}px`;
+        drag.preview.style.height = `${Math.max((range.end - range.start) * pxPerMinute - 4, 24)}px`;
+        drag.preview.textContent = previewLabel(range.start, range.end);
+      };
+
+      container.onpointerup = (event) => finishTimelineDrag(event, true);
+      container.onpointercancel = (event) => finishTimelineDrag(event, false);
+
+      function finishTimelineDrag(event, shouldOpen) {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const wasDragging = drag.dragging;
+        const range = drag.range;
+        if (drag.preview) drag.preview.remove();
+        container.classList.remove('dragging');
+        stage.releasePointerCapture?.(event.pointerId);
+        drag = null;
+        if (wasDragging) {
+          event.preventDefault();
+          container._suppressBlankClick = true;
+          setTimeout(() => { container._suppressBlankClick = false; }, 0);
+          if (shouldOpen) {
+            openAddDialog({
+              person,
+              date: currentDate,
+              start: minutesToTime(range.start),
+              end: minutesToInputTime(range.end)
+            });
+          }
+        }
+      }
+    }
+
+    function handleTimelineBlankClick(event, person, container) {
+      if (container._suppressBlankClick) {
+        container._suppressBlankClick = false;
+        return;
+      }
+      if (event.target.closest('[data-event-id]')) return;
+      const stage = container.querySelector('.timeline-stage');
+      if (!stage) return;
+
+      const clickedMinute = getTimelineMinuteFromClientY(stage, event.clientY);
+      const startMinute = Math.min(Math.floor(clickedMinute / 30) * 30, 1410);
+      const endMinute = Math.min(startMinute + 60, 1440);
+
+      openAddDialog({
+        person,
+        date: currentDate,
+        start: minutesToTime(startMinute),
+        end: minutesToInputTime(endMinute)
+      });
+    }
+
+    function minutesToInputTime(minutes) {
+      if (minutes >= 1440) return '23:59';
+      return minutesToTime(minutes);
+    }
+
+    function layoutOverlappingEvents(dayEvents) {
+      const sorted = dayEvents
+        .map(ev => ({ ...ev, _startMin: timeToMinutes(ev.start), _endMin: timeToMinutes(ev.end) }))
+        .sort((a, b) => a._startMin - b._startMin || a._endMin - b._endMin || (a._order || 0) - (b._order || 0));
+
+      const groups = [];
+      let current = [];
+      let groupEnd = -1;
+      sorted.forEach(ev => {
+        if (!current.length || ev._startMin < groupEnd) {
+          current.push(ev);
+          groupEnd = Math.max(groupEnd, ev._endMin);
+        } else {
+          groups.push(current);
+          current = [ev];
+          groupEnd = ev._endMin;
+        }
+      });
+      if (current.length) groups.push(current);
+
+      const result = [];
+      groups.forEach(group => {
+        const lanes = [];
+        group.forEach(ev => {
+          let lane = lanes.findIndex(end => end <= ev._startMin);
+          if (lane === -1) {
+            lane = lanes.length;
+            lanes.push(ev._endMin);
+          } else {
+            lanes[lane] = ev._endMin;
+          }
+          result.push({ ...ev, lane, laneCount: 0 });
+        });
+        const laneCount = Math.max(lanes.length, 1);
+        result.slice(result.length - group.length).forEach(ev => ev.laneCount = laneCount);
+      });
+
+      return result;
+    }
+
+    function getEffectiveStatusSegments(dayEvents) {
+      const points = [...new Set(dayEvents.flatMap(ev => [timeToMinutes(ev.start), timeToMinutes(ev.end)]))]
+        .filter(m => m >= 0 && m <= 1440)
+        .sort((a, b) => a - b);
+      const segments = [];
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const start = points[i];
+        const end = points[i + 1];
+        if (start === end) continue;
+        const covering = dayEvents.filter(ev => timeToMinutes(ev.start) <= start && end <= timeToMinutes(ev.end));
+        const event = choosePriorityEvent(covering);
+        if (!event) continue;
+        const last = segments[segments.length - 1];
+        if (last && last.end === start && last.event.status === event.status && (last.event.ids ? last.event.ids[0] : last.event.id) === (event.ids ? event.ids[0] : event.id)) {
+          last.end = end;
+        } else {
+          segments.push({ start, end, event });
+        }
+      }
+      return segments;
+    }
+
+    function eventBlock(ev, top, height, metrics) {
+      let layoutStyle = '';
+      let overlapClass = '';
+      if (ev.laneCount && ev.laneCount > 1) {
+        const laneCount = ev.laneCount;
+        const gap = metrics.gap;
+        const laneWidth = Math.max((metrics.width - gap * (laneCount - 1)) / laneCount, 48);
+        const left = metrics.left + ev.lane * (laneWidth + gap);
+        layoutStyle = `left:${left}px;right:auto;width:${laneWidth}px;`;
+        overlapClass = ' overlap';
+      }
+      const shortClass = height < 48 ? ' compact' : '';
+      const colorClass = `event-${ev.status || 'unknown'}`;
+      const repeatIcon = normalizeRepeatType(ev) !== 'none' ? ' ↻' : '';
+      return `<div class="event-block ${colorClass}${overlapClass}${shortClass}" data-event-id="${ev.ids ? ev.ids[0] : ev.id}" data-occurrence-date="${ev.occurrenceDate || currentDate}" style="top:${top}px;height:${height}px;${layoutStyle}">
+        <div class="event-title">${escapeHtml(ev.title)}${repeatIcon}</div>
+        <div class="event-time">${ev.start}〜${ev.end}</div>
+      </div>`;
+    }
+
+    function statusBlock(ev, top, height) {
+      return `<div class="status-block" data-event-id="${ev.ids ? ev.ids[0] : ev.id}" data-occurrence-date="${ev.occurrenceDate || currentDate}" style="top:${top}px;height:${height}px">
+        ${statusPill(ev.status)}
+      </div>`;
+    }
+
+    function getMonthEventsFor(date) {
+      return getEventsFor(date)
+        .filter(e => e.monthly)
+        .sort((a, b) => (a.person + a.start + a.title).localeCompare(b.person + b.start + b.title, 'ja'));
+    }
+
+    function renderMonth() {
+      const grid = document.getElementById('monthGrid');
+      const y = monthCursor.getFullYear();
+      const m = monthCursor.getMonth();
+      document.getElementById('monthTitle').textContent = `${y}年${m + 1}月`;
+
+      const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+      let html = weekdays.map(w => `<div class="weekday">${w}</div>`).join('');
+
+      const first = new Date(y, m, 1);
+      const start = new Date(y, m, 1 - first.getDay());
+      const today = toDateString(new Date());
+
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const ds = toDateString(d);
+        const dayMonthEvents = getMonthEventsFor(ds);
+        const classes = ['day-cell'];
+        if (d.getMonth() !== m) classes.push('other');
+        if (ds === today) classes.push('today');
+        html += `<div class="${classes.join(' ')}" data-date="${ds}">
+          <div class="day-num">${d.getDate()}</div>
+          ${dayMonthEvents.slice(0, 4).map(e => `<div class="mini-event" data-event-id="${e.id}" data-occurrence-date="${e.occurrenceDate || ds}">${people[e.person]}：${e.start} ${escapeHtml(e.title)} ${statusMap[e.status]?.icon || ''}</div>`).join('')}
+          ${dayMonthEvents.length > 4 ? `<div class="mini-event">他${dayMonthEvents.length - 4}件</div>` : ''}
+        </div>`;
+      }
+
+      grid.innerHTML = html;
+      grid.querySelectorAll('.day-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          openAddDialog({ date: cell.dataset.date });
+        });
+      });
+      grid.querySelectorAll('.mini-event[data-event-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditDialog(el.dataset.eventId, el.dataset.occurrenceDate || currentDate);
+        });
+      });
+    }
+
+    function openAddDialog(defaults = {}) {
+      document.getElementById('modalTitle').textContent = '予定を追加';
+      document.getElementById('eventId').value = '';
+      document.getElementById('occurrenceDate').value = '';
+      document.getElementById('editScopeRow').style.display = 'none';
+      document.getElementById('editScope').value = 'only';
+      document.getElementById('person').value = defaults.person || 'shion';
+      document.getElementById('eventDate').value = defaults.date || currentDate;
+      document.getElementById('title').value = '';
+      document.getElementById('startTime').value = defaults.start || '20:00';
+      document.getElementById('endTime').value = defaults.end || '21:00';
+      document.getElementById('status').value = 'ok';
+      document.getElementById('memo').value = '';
+      document.getElementById('showInMonth').checked = false;
+      document.getElementById('repeatType').value = 'none';
+      setRepeatDaysFromDate(defaults.date || currentDate);
+      updateRepeatOptionsVisibility();
+      updateScopeControls();
+      document.getElementById('deleteBtn').style.visibility = 'hidden';
+      eventDialog.showModal();
+    }
+
+    function openEditDialog(id, occurrenceDate = currentDate) {
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+      const isRecurringMaster = normalizeRepeatType(ev) !== 'none';
+      const displayDate = isRecurringMaster ? occurrenceDate : ev.date;
+      document.getElementById('modalTitle').textContent = isRecurringMaster ? '繰り返し予定を編集' : '予定を編集';
+      document.getElementById('eventId').value = ev.id;
+      document.getElementById('occurrenceDate').value = displayDate;
+      document.getElementById('person').value = ev.person;
+      document.getElementById('eventDate').value = displayDate;
+      document.getElementById('title').value = ev.title;
+      document.getElementById('startTime').value = ev.start;
+      document.getElementById('endTime').value = ev.end;
+      document.getElementById('status').value = ev.status;
+      document.getElementById('memo').value = ev.memo || '';
+      document.getElementById('showInMonth').checked = !!ev.monthly;
+      document.getElementById('repeatType').value = normalizeRepeatType(ev);
+      setRepeatDays(ev.repeatDays || [getDateObj(ev.originalDate || ev.date).getDay()]);
+      updateRepeatOptionsVisibility();
+      document.getElementById('editScopeRow').style.display = isRecurringMaster ? 'block' : 'none';
+      document.getElementById('editScope').value = isRecurringMaster ? 'only' : 'series';
+      document.getElementById('deleteBtn').style.visibility = 'visible';
+      eventDialog.showModal();
+    }
+
+    function closeDialog() {
+      eventDialog.close();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>'"]/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[c]));
+    }
+
+    function updateRepeatOptionsVisibility() {
+      const repeatType = document.getElementById('repeatType').value;
+      document.getElementById('weeklyOptions').style.display = repeatType === 'weekly' ? 'block' : 'none';
+    }
+
+    function updateScopeControls() {
+      const scopeRow = document.getElementById('editScopeRow');
+      const isOnly = scopeRow.style.display !== 'none' && document.getElementById('editScope').value === 'only';
+      document.getElementById('repeatType').disabled = isOnly;
+      document.querySelectorAll('input[name="repeatDay"]').forEach(input => { input.disabled = isOnly; });
+    }
+
+    function getSelectedRepeatDays() {
+      return Array.from(document.querySelectorAll('input[name="repeatDay"]:checked')).map(input => Number(input.value));
+    }
+
+    function setRepeatDays(days) {
+      const set = new Set((days || []).map(Number));
+      document.querySelectorAll('input[name="repeatDay"]').forEach(input => {
+        input.checked = set.has(Number(input.value));
+      });
+    }
+
+    function setRepeatDaysFromDate(dateString) {
+      const d = getDateObj(dateString);
+      setRepeatDays([d.getDay()]);
+    }
+
+    document.getElementById('repeatType').addEventListener('change', () => { updateRepeatOptionsVisibility(); updateScopeControls(); });
+    document.getElementById('editScope').addEventListener('change', () => { updateRepeatOptionsVisibility(); updateScopeControls(); });
+    document.getElementById('eventDate').addEventListener('change', () => {
+      const id = document.getElementById('eventId').value;
+      if (!id && document.getElementById('repeatType').value === 'weekly') {
+        setRepeatDaysFromDate(document.getElementById('eventDate').value);
+      }
+    });
+
+    function addExceptionDateToEvent(eventId, date) {
+      events = events.map(e => {
+        if (e.id !== eventId) return e;
+        const dates = new Set(Array.isArray(e.exceptionDates) ? e.exceptionDates : []);
+        dates.add(date);
+        return { ...e, exceptionDates: Array.from(dates).sort(), updatedAt: Date.now() };
+      });
+    }
+
+    function removeOverridesFor(masterId, occurrenceDate = null) {
+      events = events.filter(e => {
+        if (e.parentId !== masterId) return true;
+        if (!occurrenceDate) return false;
+        return e.exceptionOfDate !== occurrenceDate;
+      });
+    }
+
+    function removeOverridesForOnOrAfter(masterId, occurrenceDate) {
+      events = events.filter(e => {
+        if (e.parentId !== masterId) return true;
+        return !(e.exceptionOfDate && e.exceptionOfDate >= occurrenceDate);
+      });
+    }
+
+    function shortenRecurringEventBefore(eventId, occurrenceDate) {
+      const until = previousDateString(occurrenceDate);
+      events = events.map(e => e.id === eventId ? { ...e, repeatUntil: until, updatedAt: Date.now() } : e);
+    }
+
+    function makeSingleOccurrenceFromForm(masterId, occurrenceDate, existing = null) {
+      const nowStamp = Date.now();
+      return {
+        id: existing?.id || crypto.randomUUID(),
+        parentId: masterId,
+        exceptionOfDate: occurrenceDate,
+        person: document.getElementById('person').value,
+        date: document.getElementById('eventDate').value,
+        title: document.getElementById('title').value.trim(),
+        start: document.getElementById('startTime').value,
+        end: document.getElementById('endTime').value,
+        status: document.getElementById('status').value,
+        memo: document.getElementById('memo').value.trim(),
+        monthly: document.getElementById('showInMonth').checked,
+        repeatType: 'none',
+        repeatDays: [],
+        createdAt: existing?.createdAt || nowStamp,
+        updatedAt: nowStamp
+      };
+    }
+
+    eventForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('eventId').value;
+      const occurrenceDate = document.getElementById('occurrenceDate').value || document.getElementById('eventDate').value;
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      if (timeToMinutes(start) >= timeToMinutes(end)) {
+        alert('終了時刻は開始時刻より後にしてください。');
+        return;
+      }
+      const existing = id ? events.find(e => e.id === id) : null;
+      const editingRecurringMaster = existing && normalizeRepeatType(existing) !== 'none';
+      const editScope = editingRecurringMaster ? document.getElementById('editScope').value : 'series';
+      const nowStamp = Date.now();
+      const repeatType = editScope === 'only' ? 'none' : document.getElementById('repeatType').value;
+      const repeatDays = repeatType === 'weekly' ? getSelectedRepeatDays() : [];
+      if (repeatType === 'weekly' && repeatDays.length === 0) {
+        alert('毎週の繰り返しでは、曜日を1つ以上選んでください。');
+        return;
+      }
+
+      if (editingRecurringMaster && editScope === 'only') {
+        const overrideExisting = events.find(e => e.parentId === id && e.exceptionOfDate === occurrenceDate);
+        const data = makeSingleOccurrenceFromForm(id, occurrenceDate, overrideExisting);
+        if (!data.title) return;
+        addExceptionDateToEvent(id, occurrenceDate);
+        if (overrideExisting) {
+          events = events.map(e => e.id === overrideExisting.id ? data : e);
+        } else {
+          events.push(data);
+        }
+        saveEvents();
+        currentDate = data.date;
+        closeDialog();
+        renderAll();
+        return;
+      }
+
+      if (editingRecurringMaster && editScope === 'future') {
+        const data = {
+          id: crypto.randomUUID(),
+          splitFromId: id,
+          person: document.getElementById('person').value,
+          date: document.getElementById('eventDate').value,
+          title: document.getElementById('title').value.trim(),
+          start,
+          end,
+          status: document.getElementById('status').value,
+          memo: document.getElementById('memo').value.trim(),
+          monthly: document.getElementById('showInMonth').checked,
+          repeatType,
+          repeatDays,
+          exceptionDates: [],
+          createdAt: nowStamp,
+          updatedAt: nowStamp
+        };
+        if (!data.title) return;
+        shortenRecurringEventBefore(id, occurrenceDate);
+        removeOverridesForOnOrAfter(id, occurrenceDate);
+        events.push(data);
+        saveEvents();
+        currentDate = occurrenceDate;
+        closeDialog();
+        renderAll();
+        return;
+      }
+
+      const data = {
+        id: id || crypto.randomUUID(),
+        person: document.getElementById('person').value,
+        date: document.getElementById('eventDate').value,
+        title: document.getElementById('title').value.trim(),
+        start,
+        end,
+        status: document.getElementById('status').value,
+        memo: document.getElementById('memo').value.trim(),
+        monthly: document.getElementById('showInMonth').checked,
+        repeatType,
+        repeatDays,
+        exceptionDates: existing?.exceptionDates || [],
+        repeatUntil: existing?.repeatUntil || null,
+        createdAt: existing?.createdAt || nowStamp,
+        updatedAt: nowStamp
+      };
+      if (!data.title) return;
+
+      if (id) {
+        events = events.map(e => e.id === id ? data : e);
+      } else {
+        events.push(data);
+      }
+      saveEvents();
+      currentDate = data.date;
+      closeDialog();
+      renderAll();
+    });
+    document.getElementById('deleteBtn').addEventListener('click', () => {
+      const id = document.getElementById('eventId').value;
+      if (!id) return;
+      const ev = events.find(e => e.id === id);
+      const isRecurring = ev && normalizeRepeatType(ev) !== 'none';
+      const occurrenceDate = document.getElementById('occurrenceDate').value || document.getElementById('eventDate').value;
+      const editScope = isRecurring ? document.getElementById('editScope').value : 'series';
+
+      if (isRecurring && editScope === 'only') {
+        if (!confirm(`${occurrenceDate} のこの予定だけ削除しますか？\n繰り返し予定そのものは残ります。`)) return;
+        addExceptionDateToEvent(id, occurrenceDate);
+        removeOverridesFor(id, occurrenceDate);
+        saveEvents();
+        closeDialog();
+        renderAll();
+        return;
+      }
+
+      if (isRecurring && editScope === 'future') {
+        if (!confirm(`${occurrenceDate} 以降のこの繰り返し予定を削除しますか？\n${occurrenceDate} より前の予定は残ります。`)) return;
+        shortenRecurringEventBefore(id, occurrenceDate);
+        removeOverridesForOnOrAfter(id, occurrenceDate);
+        saveEvents();
+        closeDialog();
+        renderAll();
+        return;
+      }
+
+      const message = isRecurring
+        ? 'この繰り返し予定を全体削除しますか？\nこの予定から作った「この日だけ変更」も削除されます。'
+        : 'この予定を削除しますか？';
+      if (!confirm(message)) return;
+      events = events.filter(e => e.id !== id && e.parentId !== id);
+      saveEvents();
+      closeDialog();
+      renderAll();
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', closeDialog);
+    document.getElementById('helpBtn').addEventListener('click', () => helpDialog.showModal());
+    document.getElementById('closeHelpBtn').addEventListener('click', () => helpDialog.close());
+    document.getElementById('shareSettingsBtn').addEventListener('click', openShareDialog);
+    document.getElementById('cancelShareBtn').addEventListener('click', () => shareDialog.close());
+    document.getElementById('disableShareBtn').addEventListener('click', () => {
+      if (firebaseUnsubscribe) firebaseUnsubscribe();
+      firebaseUnsubscribe = null;
+      firebaseReady = false;
+      firebaseDocRef = null;
+      saveShareSettings({ roomId: '', firebaseConfigText: '' });
+      setSyncBadge('', 'ローカル保存');
+      shareDialog.close();
+    });
+    document.getElementById('exportBackupBtn').addEventListener('click', exportBackup);
+    document.getElementById('importBackupBtn').addEventListener('click', () => {
+      document.getElementById('backupFileInput').click();
+    });
+    document.getElementById('backupFileInput').addEventListener('change', importBackupFromFile);
+    shareForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const roomId = sanitizeRoomId(document.getElementById('roomIdInput').value);
+      const firebaseConfigText = document.getElementById('firebaseConfigInput').value.trim();
+      if (!roomId || !firebaseConfigText) {
+        alert('ルームIDとFirebase設定JSONを入力してください。');
+        return;
+      }
+      try { JSON.parse(firebaseConfigText); } catch {
+        alert('Firebase設定JSONの形式が正しくありません。');
+        return;
+      }
+      savePeople({
+        shion: document.getElementById('user1NameInput').value,
+        partner: document.getElementById('user2NameInput').value
+      }, false);
+      saveShareSettings({ roomId, firebaseConfigText });
+      shareDialog.close();
+      await connectFirebase();
+    });
+    document.getElementById('addEventBtn').addEventListener('click', () => openAddDialog());
+    document.querySelectorAll('.add-person').forEach(btn => {
+      btn.addEventListener('click', () => openAddDialog({ person: btn.dataset.person }));
+    });
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        renderAll();
+      });
+    });
+
+    selectedDate.addEventListener('change', () => {
+      currentDate = selectedDate.value;
+      renderDay();
+    });
+
+    document.getElementById('prevDay').addEventListener('click', () => {
+      const d = new Date(currentDate + 'T00:00:00');
+      d.setDate(d.getDate() - 1);
+      currentDate = toDateString(d);
+      renderDay();
+    });
+
+    document.getElementById('nextDay').addEventListener('click', () => {
+      const d = new Date(currentDate + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      currentDate = toDateString(d);
+      renderDay();
+    });
+
+    document.getElementById('todayBtn').addEventListener('click', () => {
+      currentDate = toDateString(new Date());
+      renderDay();
+    });
+
+    document.getElementById('prevMonth').addEventListener('click', () => {
+      monthCursor.setMonth(monthCursor.getMonth() - 1);
+      renderMonth();
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+      monthCursor.setMonth(monthCursor.getMonth() + 1);
+      renderMonth();
+    });
+
+    document.getElementById('thisMonthBtn').addEventListener('click', () => {
+      monthCursor = new Date();
+      renderMonth();
+    });
+
+    function updateAddButtonLabel() {
+      document.getElementById('addEventBtn').textContent = '＋予定を追加';
+    }
+
+
+    function setSyncBadge(state, text) {
+      const title = document.querySelector('.current-title');
+      if (!title) return;
+      let badge = document.getElementById('syncBadge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'syncBadge';
+        badge.className = 'sync-badge';
+        title.appendChild(badge);
+      }
+      badge.className = `sync-badge ${state || ''}`.trim();
+      badge.textContent = text;
+      const statusText = document.getElementById('syncStatusText');
+      if (statusText) statusText.textContent = text;
+    }
+
+    function getFirebaseConfig() {
+      const text = (shareSettings.firebaseConfigText || '').trim();
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        console.error(err);
+        setSyncBadge('offline', 'Firebase設定JSONの形式が不正です');
+        return null;
+      }
+    }
+
+    function sanitizeRoomId(roomId) {
+      return String(roomId || '').trim().replace(/[\\/#?\[\]]/g, '-');
+    }
+
+    async function connectFirebase() {
+      if (firebaseUnsubscribe) {
+        firebaseUnsubscribe();
+        firebaseUnsubscribe = null;
+      }
+      firebaseReady = false;
+      firebaseDocRef = null;
+
+      const roomId = sanitizeRoomId(shareSettings.roomId);
+      const config = getFirebaseConfig();
+      if (!roomId || !config) {
+        setSyncBadge('', 'ローカル保存');
+        return;
+      }
+
+      try {
+        setSyncBadge('', 'Firebase接続中...');
+        const appModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+        const firestoreModule = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+        const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(config);
+        const db = firestoreModule.getFirestore(app);
+        firebaseModules = {
+          setDoc: firestoreModule.setDoc,
+          getDoc: firestoreModule.getDoc,
+          doc: firestoreModule.doc,
+          onSnapshot: firestoreModule.onSnapshot,
+          serverTimestamp: firestoreModule.serverTimestamp
+        };
+        firebaseDocRef = firebaseModules.doc(db, 'rooms', roomId);
+        firebaseReady = true;
+
+        const firstSnap = await firebaseModules.getDoc(firebaseDocRef);
+        if (!firstSnap.exists()) {
+          await firebaseModules.setDoc(firebaseDocRef, {
+            events,
+            people,
+            createdAt: firebaseModules.serverTimestamp(),
+            updatedAt: firebaseModules.serverTimestamp()
+          }, { merge: true });
+        }
+
+        firebaseUnsubscribe = firebaseModules.onSnapshot(firebaseDocRef, snap => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          syncingFromRemote = true;
+          if (data.people && typeof data.people === 'object') {
+            savePeople({ ...DEFAULT_PEOPLE, ...data.people }, false);
+          }
+          if (Array.isArray(data.events)) {
+            events = data.events;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+          }
+          renderAll();
+          syncingFromRemote = false;
+          setSyncBadge('online', `共有中：${roomId}`);
+        }, err => {
+          console.error(err);
+          setSyncBadge('offline', '同期エラー');
+        });
+      } catch (err) {
+        console.error(err);
+        firebaseReady = false;
+        setSyncBadge('offline', 'Firebase接続失敗');
+      }
+    }
+
+    function openShareDialog() {
+      document.getElementById('user1NameInput').value = people.shion || DEFAULT_PEOPLE.shion;
+      document.getElementById('user2NameInput').value = people.partner || DEFAULT_PEOPLE.partner;
+      document.getElementById('roomIdInput').value = shareSettings.roomId || '';
+      document.getElementById('firebaseConfigInput').value = shareSettings.firebaseConfigText || '';
+      const roomId = sanitizeRoomId(shareSettings.roomId);
+      document.getElementById('syncStatusText').textContent = firebaseReady ? `共有中：${roomId}` : '未設定の場合は、この端末だけに保存されます。';
+      shareDialog.showModal();
+    }
+
+
+    function updatePeopleLabels() {
+      const shionName = people.shion || DEFAULT_PEOPLE.shion;
+      const partnerName = people.partner || DEFAULT_PEOPLE.partner;
+      const labelShion = document.getElementById('labelShion');
+      const labelPartner = document.getElementById('labelPartner');
+      if (labelShion) labelShion.textContent = shionName;
+      if (labelPartner) labelPartner.textContent = partnerName;
+      const personSelect = document.getElementById('person');
+      if (personSelect) {
+        const shionOption = personSelect.querySelector('option[value="shion"]');
+        const partnerOption = personSelect.querySelector('option[value="partner"]');
+        if (shionOption) shionOption.textContent = shionName;
+        if (partnerOption) partnerOption.textContent = partnerName;
+      }
+    }
+
+    function exportBackup() {
+      const backup = {
+        app: 'schedule-share-board',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        people,
+        events
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+      a.href = url;
+      a.download = `schedule_backup_${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function importBackupFromFile(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const importedEvents = Array.isArray(data) ? data : data.events;
+        if (!Array.isArray(importedEvents)) {
+          alert('バックアップファイルの形式が正しくありません。');
+          return;
+        }
+        const importedPeople = data.people && typeof data.people === 'object'
+          ? { ...DEFAULT_PEOPLE, ...data.people }
+          : people;
+        const message = firebaseReady
+          ? 'バックアップを復元します。共有中の相手側にも反映されます。よろしいですか？'
+          : 'バックアップを復元します。現在の予定は上書きされます。よろしいですか？';
+        if (!confirm(message)) return;
+        events = importedEvents;
+        savePeople(importedPeople, false);
+        saveEvents();
+        renderAll();
+        shareDialog.close();
+      } catch (err) {
+        console.error(err);
+        alert('バックアップの読み込みに失敗しました。JSONファイルを確認してください。');
+      }
+    }
+
+    function renderAll() {
+      updatePeopleLabels();
+      updateAddButtonLabel();
+      renderCurrentPanel();
+      renderDay();
+      renderMonth();
+    }
+
+    renderAll();
+    connectFirebase();
+    setInterval(renderCurrentPanel, 30000);
+  </script>
+</body>
+</html>
