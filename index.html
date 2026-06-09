@@ -1905,13 +1905,21 @@
         alert('Firebase設定JSONの形式が正しくありません。');
         return;
       }
-      savePeople({
+
+      // 先に画面側の名前を更新してから、Firebase接続後に必ず共有データへ反映する。
+      // これをしないと、既存ルームの古い people が onSnapshot で戻ってきて名前変更が消えることがある。
+      const nextPeople = {
         shion: document.getElementById('user1NameInput').value,
         partner: document.getElementById('user2NameInput').value
-      }, false);
+      };
+      savePeople(nextPeople, false);
       saveShareSettings({ roomId, firebaseConfigText });
       shareDialog.close();
       await connectFirebase();
+      if (firebaseReady && firebaseDocRef && firebaseModules) {
+        await savePeople(people, true);
+        renderAll();
+      }
     });
     document.getElementById('addEventBtn').addEventListener('click', () => openAddDialog());
     document.querySelectorAll('.add-person').forEach(btn => {
