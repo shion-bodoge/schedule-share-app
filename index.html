@@ -934,7 +934,7 @@
       <div class="hint">
         <p><strong>予定を追加</strong><br>上の「＋予定を追加」または各人の「＋追加」から登録できます。1日タブの空白をクリックすると、その時間から1時間の予定を追加できます。空白をドラッグすると、ドラッグした範囲で予定を追加できます。</p>
         <p><strong>予定を編集・削除</strong><br>予定ボックスまたは右側の通話ステータスをクリックすると編集できます。繰り返し予定は「この日だけ」「この日以降」「全体」を選べます。</p>
-        <p><strong>通話ステータス</strong><br>🟢話せる、🟡返事遅め、🔴むずかしい、⚪未定から選べます。予定が重なった場合は短い予定を優先し、同じ長さなら後から更新した予定を優先します。</p>
+        <p><strong>通話ステータス</strong><br>🟢話せる、🟡返事遅め、🔴むずかしい、⚪未定から選べます。予定が入っていない時間は🟢話せる扱いになります。予定が重なった場合は短い予定を優先し、同じ長さなら後から更新した予定を優先します。</p>
         <p><strong>月間タブ</strong><br>予定登録時に「月間にも表示する」にチェックした予定だけ表示されます。</p>
         <p><strong>共有設定</strong><br>Firebase設定JSONとルームIDを入れると、同じルームIDの人と予定を共有できます。未設定ならこの端末だけに保存されます。</p>
       </div>
@@ -1284,7 +1284,23 @@
       const now = new Date();
       const today = toDateString(now);
       const minutes = now.getHours() * 60 + now.getMinutes();
-      const list = getMergedEventsFor(today, person).filter(e => e.status === 'ok' && timeToMinutes(e.end) > minutes);
+      const todayEvents = getMergedEventsFor(today, person);
+      const currentEvents = todayEvents.filter(e => timeToMinutes(e.start) <= minutes && minutes < timeToMinutes(e.end));
+
+      // 予定が入っていない時間は「話せる」扱いにする。
+      if (currentEvents.length === 0) {
+        const nextEvent = todayEvents.find(e => timeToMinutes(e.start) > minutes);
+        return {
+          title: '予定なし',
+          start: minutesToTime(minutes),
+          end: nextEvent ? nextEvent.start : '24:00',
+          status: 'ok',
+          isNow: true,
+          isFreeSlot: true
+        };
+      }
+
+      const list = todayEvents.filter(e => e.status === 'ok' && timeToMinutes(e.end) > minutes);
       const currentCallable = list.find(e => timeToMinutes(e.start) <= minutes && minutes < timeToMinutes(e.end));
       if (currentCallable) return { ...currentCallable, isNow: true };
       return list.find(e => timeToMinutes(e.start) >= minutes) || null;
@@ -1296,7 +1312,8 @@
         return '<div class="next-call">📞 次に通話できる時間：今日の予定内では見つかりません</div>';
       }
       if (ev.isNow) {
-        return `<div class="next-call">📞 次に通話できる時間：<strong>今</strong>（${ev.end}まで）</div>`;
+        const suffix = ev.isFreeSlot ? '（次の予定まで）' : `（${ev.end}まで）`;
+        return `<div class="next-call">📞 次に通話できる時間：<strong>今</strong>${suffix}</div>`;
       }
       return `<div class="next-call">📞 次に通話できる時間：<strong>${ev.start}</strong>〜${ev.end}（${escapeHtml(ev.title)}）</div>`;
     }
@@ -1315,10 +1332,10 @@
         el.innerHTML = `
           <div class="person-name">${people[person]}</div>
           <div class="current-main">
-            <div class="current-event">現在の予定なし</div>
-            ${statusPill('unknown')}
+            <div class="current-event">予定なし</div>
+            ${statusPill('ok')}
           </div>
-          <div class="current-time">登録された予定の時間外です</div>
+          <div class="current-time">予定が入っていないため、話せる扱いです</div>
           ${nextCallableHtml(person)}
         `;
         return;
